@@ -1,0 +1,2 @@
+[Service]
+ExecStart=/home/student/PycharmProjects/psutilDaemonTask/task.py
