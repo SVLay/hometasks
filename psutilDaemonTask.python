@@ -1,0 +1,94 @@
+#!/usr/bin/python
+import psutil
+import datetime
+import time
+import logging
+import json
+from abc import ABCMeta, abstractmethod
+
+logging.basicConfig(level="INFO")
+
+
+class logger_base(object):
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def save_data_to_file(self, file, data):
+        pass
+
+
+class json_logger(logger_base):
+    def save_data_to_file(self, file, data):
+        with open(file, 'a') as json_file:
+            json.dump(data, json_file)
+
+
+class text_logger(logger_base):
+    def save_data_to_file(self, file, data):
+        with open(file, 'a') as data_file:
+            data_file.write(str(data) + "\n")
+
+
+class number_inc:
+
+    def __init__(self, file):
+        self.file = file
+        with open(self.file, 'r+') as number_file:
+            self.number = number_file.readline()
+
+
+    def save_data_to_file(self):
+        with open(self.file, 'r+') as number_file:
+            self.number = number_file.readline()
+        open(self.file, 'w').close()
+        with open(self.file, 'r+') as number_file:
+            if self.number.__eq__(""):
+                self.number = "1"
+            else:
+                self.number = str(int(self.number) + 1)
+            number_file.write(str(self.number))
+
+
+class runner:
+
+    def __init__(self, json_file, text_file, number_file):
+        self.json_file = json_file
+        self.text_file = text_file
+        self.number = number_file
+
+        self.json_logger = json_logger()
+        self.text_logger = text_logger()
+        self.numb_logger = number_inc(self.number)
+
+    def main_thread(self):
+        while True:
+            try:
+                config_file = open("/home/student/PycharmProjects/psutilDaemonTask/config", "r")
+                config = config_file.readlines()
+                config_file.close()
+                output = [str(psutil.cpu_stats()), str(psutil.virtual_memory()), str(psutil.swap_memory()),
+                          str(psutil.disk_io_counters()), str(psutil.net_io_counters())]
+                self.numb_logger.save_data_to_file()
+                output.insert(0, "SNAPSHOT {0}: {1}: ".format(self.numb_logger.number, str(datetime.datetime.now())))
+
+                intervalStr = config[2].split()[-1]
+                intervalInt = int(intervalStr)
+                outputFormat = config[1].split()[-1]
+
+            except ValueError:
+                logging.info("File's init Error")
+            else:
+                if outputFormat == "text":
+                    self.text_logger.save_data_to_file(self.text_file, output)
+                elif outputFormat == "json":
+                    self.json_logger.save_data_to_file(self.json_file, output)
+
+
+            time.sleep(intervalInt)
+
+json_file_path = "/home/student/PycharmProjects/psutilDaemonTask/log_json"
+text_file_path = "/home/student/PycharmProjects/psutilDaemonTask/log_text"
+number_file_path = "/home/student/PycharmProjects/psutilDaemonTask/number"
+
+runner_obj = runner(json_file_path, text_file_path, number_file_path)
+runner.main_thread(runner_obj)
